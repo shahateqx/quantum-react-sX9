@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quantum React | Interactive Reaction Engine</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #0F1115;
+            --surface: rgba(26, 29, 36, 0.65);
+            --primary: #3BE8FF;
+            --success: #A3FF3B;
+            --error: #FF5A5F;
+            --warning: #FFB03B;
+            --text-main: #F5F7FA;
+            --text-sec: #9BA3AF;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+            /* Prevent mobile scrolling */
+        }
+
+        /* Three.js Canvas Container */
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2rem;
+            pointer-events: none;
+            /* Let clicks pass through to the document listener */
+        }
+
+        /* Glassmorphism Utilities */
+        .glass {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+        }
+
+        /* Header / Stats */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .brand {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .stats-container {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .stat-box {
+            padding: 1rem 1.5rem;
+            text-align: right;
+            min-width: 140px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-sec);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Main Interactive Area */
+        main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .state-text {
+            font-family: var(--font-display);
+            font-size: 4rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+            transition: color 0.1s ease;
+        }
+
+        .sub-text {
+            font-size: 1.125rem;
+            color: var(--text-sec);
+            max-width: 400px;
+            line-height: 1.5;
+        }
+
+        .timing-display {
+            font-family: var(--font-display);
+            font-size: 6rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 1rem 0;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .timing-display.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Footer / History */
+        footer {
+            display: flex;
+            justify-content: center;
+        }
+
+        .history-panel {
+            padding: 1rem 2rem;
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .history-label {
+            font-size: 0.875rem;
+            color: var(--text-sec);
+        }
+
+        .history-list {
+            display: flex;
+            gap: 1rem;
+            list-style: none;
+        }
+
+        .history-item {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--text-main);
+            opacity: 0.7;
+        }
+
+        .history-item:first-child {
+            opacity: 1;
+            color: var(--primary);
+        }
+
+        /* Accessibility: screen reader only */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            #ui-layer {
+                padding: 1.5rem;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 1.5rem;
+                align-items: center;
+            }
+
+            .stats-container {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .state-text {
+                font-size: 2.5rem;
+            }
+
+            .timing-display {
+                font-size: 4rem;
+            }
+
+            .history-panel {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .history-list {
+                gap: 0.5rem;
+            }
+        }
+    </style>
+
+    <!-- Import Map for Modern Three.js Architecture -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <header>
+            <div class="brand">
+                <div class="brand-dot" id="brand-indicator"></div>
+                Quantum React
+            </div>
+            <div class="stats-container">
+                <div class="stat-box glass">
+                    <div class="stat-label">Best Time</div>
+                    <div class="stat-value" id="best-time">-- ms</div>
+                </div>
+                <div class="stat-box glass">
+                    <div class="stat-label">Average</div>
+                    <div class="stat-value" id="avg-time">-- ms</div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="state-text" id="main-state-text">System Ready</div>
+            <div class="timing-display" id="timing-display">000 ms</div>
+            <div class="sub-text" id="sub-state-text">Click anywhere or press Space to initialize sequence.</div>
+        </main>
+
+        <footer>
+            <div class="history-panel glass">
+                <div class="history-label">Recent Sessions:</div>
+                <ul class="history-list" id="history-list">
+                    <li class="history-item">--</li>
+                </ul>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Accessibility Announcer -->
+    <div aria-live="assertive" class="sr-only" id="a11y-announcer">Game is ready. Click anywhere to start.</div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        // ==========================================
+        // 1. CONFIGURATION & CONSTANTS
+        // ==========================================
+        const CONFIG = {
+            colors: {
+                idle: 0x3BE8FF,    // Cyan
+                waiting: 0xFFB03B, // Orange
+                ready: 0xA3FF3B,   // Green
+                error: 0xFF5A5F    // Red
+            },
+            hexColors: {
+                idle: '#3BE8FF',
+                waiting: '#FFB03B',
+                ready: '#A3FF3B',
+                error: '#FF5A5F'
+            },
+            states: {
+                IDLE: 'IDLE',
+                WAITING: 'WAITING',
+                READY: 'READY',
+                RESULTS: 'RESULTS',
+                TOO_SOON: 'TOO_SOON'
+            },
+            timings: {
+                minWait: 2000,
+                maxWait: 5500
+            },
+            storageKey: 'quantum_react_data'
+        };
+
+        // ==========================================
+        // 2. DATA STORAGE MANAGEMENT
+        // ==========================================
+        class StorageManager {
+            constructor() {
+                this.data = this.loadData();
+            }
+
+            loadData() {
+                const stored = localStorage.getItem(CONFIG.storageKey);
+                if (stored) {
+                    try {
+                        return JSON.parse(stored);
+                    } catch (e) {
+                        console.error('Storage parsing error', e);
+                    }
+                }
+                return { best: null, history: [] };
+            }
+
+            saveData() {
+                localStorage.setItem(CONFIG.storageKey, JSON.stringify(this.data));
+            }
+
+            addResult(time) {
+                // Update History (keep last 5)
+                this.data.history.unshift(time);
+                if (this.data.history.length > 5) this.data.history.pop();
+
+                // Update Best
+                if (!this.data.best || time < this.data.best) {
+                    this.data.best = time;
+                }
+
+                this.saveData();
+            }
+
+            getAverage() {
+                if (this.data.history.length === 0) return null;
+                const sum = this.data.history.reduce((a, b) => a + b, 0);
+                return Math.round(sum / this.data.history.length);
+            }
+        }
+
+        // ==========================================
+        // 3. UI CONTROLLER
+        // ==========================================
+        class UIController {
+            constructor(storage) {
+                this.storage = storage;
+                this.els = {
+                    mainText: document.getElementById('main-state-text'),
+                    subText: document.getElementById('sub-state-text'),
+                    timingDisplay: document.getElementById('timing-display'),
+                    bestTime: document.getElementById('best-time'),
+                    avgTime: document.getElementById('avg-time'),
+                    historyList: document.getElementById('history-list'),
+                    indicator: document.getElementById('brand-indicator'),
+                    announcer: document.getElementById('a11y-announcer')
+                };
+
+                this.updateStatsDisplay();
+            }
+
+            setState(state, customData = null) {
+                // Reset states
+                this.els.timingDisplay.classList.remove('visible');
+
+                switch (state) {
+                    case CONFIG.states.IDLE:
+                        this.updateText("System Ready", "Click anywhere or press Space to initialize sequence.", CONFIG.hexColors.idle);
+                        this.els.timingDisplay.textContent = "000 ms";
+                        break;
+
+                    case CONFIG.states.WAITING:
+                        this.updateText("Initializing...", "Wait for the green signal. Do not react early.", CONFIG.hexColors.waiting);
+                        break;
+
+                    case CONFIG.states.READY:
+                        this.updateText("REACT NOW!", "", CONFIG.hexColors.ready);
+                        break;
+
+                    case CONFIG.states.RESULTS:
+                        this.updateText("Sequence Complete", "Click anywhere to begin next sequence.", CONFIG.hexColors.idle);
+                        this.els.timingDisplay.textContent = `${customData} ms`;
+                        this.els.timingDisplay.style.color = CONFIG.hexColors.ready;
+                        this.els.timingDisplay.classList.add('visible');
+                        this.updateStatsDisplay();
+                        break;
+
+                    case CONFIG.states.TOO_SOON:
+                        this.updateText("Signal Lost", "You reacted too early. Click to reset sequence.", CONFIG.hexColors.error);
+                        break;
+                }
+            }
+
+            updateText(main, sub, color) {
+                this.els.mainText.textContent = main;
+                this.els.mainText.style.color = color;
+                this.els.subText.textContent = sub;
+                this.els.indicator.style.background = color;
+                this.els.indicator.style.boxShadow = `0 0 15px ${color}`;
+                this.els.announcer.textContent = `${main}. ${sub}`;
+            }
+
+            updateStatsDisplay() {
+                const data = this.storage.data;
+                const avg = this.storage.getAverage();
+
+                this.els.bestTime.textContent = data.best ? `${data.best} ms` : '-- ms';
+                this.els.avgTime.textContent = avg ? `${avg} ms` : '-- ms';
+
+                this.els.historyList.innerHTML = '';
+                if (data.history.length === 0) {
+                    this.els.historyList.innerHTML = '<li class="history-item">--</li>';
+                } else {
+                    data.history.forEach(time => {
+                        const li = document.createElement('li');
+                        li.className = 'history-item';
+                        li.textContent = `${time}ms`;
+                        this.els.historyList.appendChild(li);
+                    });
+                }
+            }
+        }
+
+        // ==========================================
+        // 4. THREE.JS PARTICLE SYSTEM
+        // ==========================================
+        class ParticleSystem {
+            constructor(scene) {
+                this.particleCount = 400;
+                this.geometry = new THREE.BufferGeometry();
+                this.positions = new Float32Array(this.particleCount * 3);
+                this.velocities = [];
+                this.baseColor = new THREE.Color(CONFIG.colors.idle);
+
+                for (let i = 0; i < this.particleCount; i++) {
+                    this.positions[i * 3] = (Math.random() - 0.5) * 5;
+                    this.positions[i * 3 + 1] = (Math.random() - 0.5) * 5;
+                    this.positions[i * 3 + 2] = (Math.random() - 0.5) * 5;
+
+                    this.velocities.push({
+                        x: (Math.random() - 0.5) * 0.02,
+                        y: (Math.random() - 0.5) * 0.02,
+                        z: (Math.random() - 0.5) * 0.02,
+                        baseSpeed: Math.random() * 0.01
+                    });
+                }
+
+                this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+
+                // Custom circular particle texture
+                const canvas = document.createElement('canvas');
+                canvas.width = 16;
+                canvas.height = 16;
+                const ctx = canvas.getContext('2d');
+                const gradient = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
+                gradient.addColorStop(0, 'rgba(255,255,255,1)');
+                gradient.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 16, 16);
+                const texture = new THREE.CanvasTexture(canvas);
+
+                this.material = new THREE.PointsMaterial({
+                    size: 0.15,
+                    map: texture,
+                    transparent: true,
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                    color: this.baseColor
+                });
+
+                this.points = new THREE.Points(this.geometry, this.material);
+                scene.add(this.points);
+
+                this.targetMultiplier = 1;
+                this.currentMultiplier = 1;
+            }
+
+            burst(colorHex) {
+                this.material.color.setHex(colorHex);
+                this.targetMultiplier = 15; // Speed up greatly
+                setTimeout(() => {
+                    this.targetMultiplier = 1; // Return to normal
+                }, 300);
+            }
+
+            setColor(colorHex) {
+                this.material.color.setHex(colorHex);
+            }
+
+            update() {
+                // Smoothly interpolate speed multiplier
+                this.currentMultiplier += (this.targetMultiplier - this.currentMultiplier) * 0.1;
+
+                const positions = this.points.geometry.attributes.position.array;
+
+                for (let i = 0; i < this.particleCount; i++) {
+                    let v = this.velocities[i];
+
+                    positions[i * 3] += v.x * this.currentMultiplier;
+                    positions[i * 3 + 1] += v.y * this.currentMultiplier;
+                    positions[i * 3 + 2] += v.z * this.currentMultiplier;
+
+                    // Bounds check - wrap around
+                    if (Math.abs(positions[i * 3]) > 10) positions[i * 3] *= -0.9;
+                    if (Math.abs(positions[i * 3 + 1]) > 10) positions[i * 3 + 1] *= -0.9;
+                    if (Math.abs(positions[i * 3 + 2]) > 10) positions[i * 3 + 2] *= -0.9;
+                }
+
+                this.points.geometry.attributes.position.needsUpdate = true;
+                this.points.rotation.y += 0.001;
+            }
+        }
+
+        // ==========================================
+        // 5. THREE.JS VISUAL ENGINE
+        // ==========================================
+        class VisualEngine {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+
+                // Core Scene Setup
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.FogExp2(0x0F1115, 0.04);
+
+                this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+                this.camera.position.z = 8;
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Performance limit
+                this.container.appendChild(this.renderer.domElement);
+
+                // Lighting
+                this.ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+                this.scene.add(this.ambientLight);
+
+                this.pointLight = new THREE.PointLight(CONFIG.colors.idle, 2, 20);
+                this.pointLight.position.set(0, 0, 2);
+                this.scene.add(this.pointLight);
+
+                // Core Geometry (The "Reactor")
+                this.createReactor();
+
+                // Particles
+                this.particles = new ParticleSystem(this.scene);
+
+                // Post-Processing (Bloom)
+                this.setupPostProcessing();
+
+                // Interaction State
+                this.mouse = new THREE.Vector2();
+                this.targetRotation = new THREE.Vector2();
+
+                // Bind Events
+                window.addEventListener('resize', this.onWindowResize.bind(this));
+                window.addEventListener('mousemove', this.onMouseMove.bind(this));
+
+                // Animation loop
+                this.animate = this.animate.bind(this);
+                this.animate();
+            }
+
+            createReactor() {
+                this.reactorGroup = new THREE.Group();
+
+                // Inner core
+                const coreGeo = new THREE.OctahedronGeometry(1.2, 0);
+                this.coreMat = new THREE.MeshStandardMaterial({
+                    color: CONFIG.colors.idle,
+                    emissive: CONFIG.colors.idle,
+                    emissiveIntensity: 0.8,
+                    wireframe: true
+                });
+                this.core = new THREE.Mesh(coreGeo, this.coreMat);
+
+                // Outer Rings
+                const ringGeo = new THREE.TorusGeometry(2.5, 0.02, 16, 100);
+                this.ringMat = new THREE.MeshBasicMaterial({
+                    color: CONFIG.colors.idle,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                this.ring1 = new THREE.Mesh(ringGeo, this.ringMat);
+                this.ring2 = new THREE.Mesh(ringGeo, this.ringMat);
+                this.ring2.rotation.x = Math.PI / 2;
+
+                this.reactorGroup.add(this.core);
+                this.reactorGroup.add(this.ring1);
+                this.reactorGroup.add(this.ring2);
+
+                this.scene.add(this.reactorGroup);
+
+                // Animation targets
+                this.reactorScaleTarget = 1;
+                this.reactorSpeedTarget = 0.005;
+                this.currentSpeed = 0.005;
+            }
+
+            setupPostProcessing() {
+                const renderScene = new RenderPass(this.scene, this.camera);
+
+                // UnrealBloomPass parameters: resolution, strength, radius, threshold
+                this.bloomPass = new UnrealBloomPass(
+                    new THREE.Vector2(window.innerWidth, window.innerHeight),
+                    1.5, 0.4, 0.1
+                );
+
+                this.composer = new EffectComposer(this.renderer);
+                this.composer.addPass(renderScene);
+                this.composer.addPass(this.bloomPass);
+            }
+
+            // Visual State Transitions
+            transitionState(state) {
+                let targetColorHex;
+
+                switch (state) {
+                    case CONFIG.states.IDLE:
+                    case CONFIG.states.RESULTS:
+                        targetColorHex = CONFIG.colors.idle;
+                        this.reactorScaleTarget = 1;
+                        this.reactorSpeedTarget = 0.005;
+                        this.bloomPass.strength = 1.5;
+                        break;
+                    case CONFIG.states.WAITING:
+                        targetColorHex = CONFIG.colors.waiting;
+                        this.reactorScaleTarget = 0.8; // Contract = tension
+                        this.reactorSpeedTarget = 0.02; // Spin faster
+                        this.bloomPass.strength = 1.0;
+                        break;
+                    case CONFIG.states.READY:
+                        targetColorHex = CONFIG.colors.ready;
+                        this.reactorScaleTarget = 1.5; // Expand = action
+                        this.reactorSpeedTarget = 0.001; // Almost freeze
+                        this.bloomPass.strength = 2.5; // Bright flash
+                        this.particles.burst(targetColorHex);
+                        break;
+                    case CONFIG.states.TOO_SOON:
+                        targetColorHex = CONFIG.colors.error;
+                        this.reactorScaleTarget = 0.9;
+                        this.reactorSpeedTarget = 0.002;
+                        this.bloomPass.strength = 0.8;
+                        this.particles.burst(targetColorHex);
+                        break;
+                }
+
+                // Apply color changes
+                const targetColor = new THREE.Color(targetColorHex);
+                this.coreMat.color = targetColor;
+                this.coreMat.emissive = targetColor;
+                this.ringMat.color = targetColor;
+                this.pointLight.color = targetColor;
+                this.particles.setColor(targetColorHex);
+            }
+
+            onMouseMove(event) {
+                // Normalize mouse coordinates to -1 to 1
+                this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                // Subtle parallax target
+                this.targetRotation.x = this.mouse.y * 0.2;
+                this.targetRotation.y = this.mouse.x * 0.2;
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.composer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(this.animate);
+
+                // Smoothly interpolate rotation speed
+                this.currentSpeed += (this.reactorSpeedTarget - this.currentSpeed) * 0.05;
+
+                // Rotate objects
+                this.core.rotation.x += this.currentSpeed;
+                this.core.rotation.y += this.currentSpeed * 1.5;
+
+                this.ring1.rotation.y += this.currentSpeed * 0.5;
+                this.ring2.rotation.x += this.currentSpeed * 0.5;
+
+                // Smooth scale interpolation
+                const scale = this.reactorGroup.scale.x;
+                const newScale = scale + (this.reactorScaleTarget - scale) * 0.1;
+                this.reactorGroup.scale.set(newScale, newScale, newScale);
+
+                // Apply Parallax effect to group
+                this.reactorGroup.rotation.x += (this.targetRotation.x - this.reactorGroup.rotation.x) * 0.05;
+                this.reactorGroup.rotation.y += (this.targetRotation.y - this.reactorGroup.rotation.y) * 0.05;
+
+                // Update particles
+                this.particles.update();
+
+                // Render via Composer for Bloom effect
+                this.composer.render();
+            }
+        }
+
+        // ==========================================
+        // 6. GAME CONTROLLER (FINITE STATE MACHINE)
+        // ==========================================
+        class GameController {
+            constructor() {
+                this.storage = new StorageManager();
+                this.ui = new UIController(this.storage);
+                this.engine = new VisualEngine();
+
+                this.state = CONFIG.states.IDLE;
+                this.timeoutId = null;
+                this.startTime = 0;
+
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                // Unified interaction handler using pointerdown to cover mouse, touch, and pen.
+                document.addEventListener('pointerdown', (e) => {
+                    // Prevent default to avoid double-firing on touch devices
+                    if (e.pointerType === 'touch') e.preventDefault();
+                    this.handleInteraction();
+                }, { passive: false });
+
+                // Keyboard support (Space and Enter)
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' || e.code === 'Enter') {
+                        e.preventDefault();
+                        this.handleInteraction();
+                    }
+                });
+            }
+
+            handleInteraction() {
+                switch (this.state) {
+                    case CONFIG.states.IDLE:
+                    case CONFIG.states.RESULTS:
+                    case CONFIG.states.TOO_SOON:
+                        this.startWaitingPhase();
+                        break;
+
+                    case CONFIG.states.WAITING:
+                        this.handleEarlyClick();
+                        break;
+
+                    case CONFIG.states.READY:
+                        this.handleValidReaction();
+                        break;
+                }
+            }
+
+            changeState(newState, data = null) {
+                this.state = newState;
+                this.ui.setState(newState, data);
+                this.engine.transitionState(newState);
+            }
+
+            startWaitingPhase() {
+                this.changeState(CONFIG.states.WAITING);
+
+                // Random delay between minWait and maxWait
+                const delay = Math.random() * (CONFIG.timings.maxWait - CONFIG.timings.minWait) + CONFIG.timings.minWait;
+
+                this.timeoutId = setTimeout(() => {
+                    this.triggerReadyPhase();
+                }, delay);
+            }
+
+            triggerReadyPhase() {
+                this.changeState(CONFIG.states.READY);
+                // Use performance.now() for high-resolution timing
+                this.startTime = performance.now();
+            }
+
+            handleEarlyClick() {
+                // Clear the timeout so it doesn't turn green
+                if (this.timeoutId) clearTimeout(this.timeoutId);
+                this.changeState(CONFIG.states.TOO_SOON);
+            }
+
+            handleValidReaction() {
+                const endTime = performance.now();
+                // Calculate and round to nearest integer millisecond
+                const reactionTime = Math.round(endTime - this.startTime);
+
+                this.storage.addResult(reactionTime);
+                this.changeState(CONFIG.states.RESULTS, reactionTime);
+            }
+        }
+
+        // ==========================================
+        // 7. INITIALIZATION
+        // ==========================================
+        window.onload = () => {
+            // Initialize the application
+            const app = new GameController();
+            console.log("Quantum React initialized successfully.");
+        };
+
+    </script>
+</body>
+
+</html>

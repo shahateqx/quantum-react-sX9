@@ -10,4 +10,4 @@ This project is a **frontend engineering portfolio piece** designed to demonstra
   - Post-processing effects  
   - Shader-like visual enhancements
  
-**sX9**
+**by sX9**

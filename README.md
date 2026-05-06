@@ -1,7 +1,5 @@
 # Quantum React | Interactive Reaction Engine
 
-![Quantum React Interface](https://shahateqx.github.io/quantum-react-sX9/)
-
 A high-performance, visually stunning reaction time testing application built with **Three.js** and modern web technologies. Experience a futuristic interface designed to push your reflexes to the limit.
 
 ## 🚀 Features
